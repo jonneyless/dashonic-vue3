@@ -1,3 +1,10 @@
+<script setup lang="ts">
+  const emits = defineEmits(['toggleSidebar']);
+  const toggleSidebarHandle = () => {
+    emits('toggleSidebar');
+  }
+</script>
+
 <template>
   <header id="page-topbar">
     <div class="navbar-header">
@@ -23,7 +30,7 @@
           </a>
         </div>
 
-        <button type="button" class="btn btn-sm px-3 font-size-16 header-item vertical-menu-btn">
+        <button type="button" class="btn btn-sm px-3 font-size-16 header-item vertical-menu-btn" @click="toggleSidebarHandle">
           <i class="fa fa-fw fa-bars"></i>
         </button>
       </div>
@@ -46,12 +53,10 @@
         </div>
 
         <div class="dropdown d-inline-block language-switch">
-          <button type="button" class="btn header-item"
-                  data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          <button type="button" class="btn header-item" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
             <img id="header-lang-img" src="@/assets/images/flags/us.jpg" alt="Header Language" height="16">
           </button>
           <div class="dropdown-menu dropdown-menu-end">
-
             <!-- item-->
             <a href="javascript:void(0);" class="dropdown-item notify-item language" data-lang="eng">
               <img src="@/assets/images/flags/us.jpg" alt="user-image" class="me-1" height="12"> <span class="align-middle">English</span>
@@ -106,12 +111,6 @@
               </a>
             </div>
           </div>
-        </div>
-
-        <div class="dropdown d-inline-block">
-          <button type="button" class="btn header-item noti-icon right-bar-toggle" id="right-bar-toggle">
-            <i class="icon-sm" data-feather="settings"></i>
-          </button>
         </div>
 
         <div class="dropdown d-inline-block">

@@ -1,94 +1,71 @@
-<script>
-import MetisMenu from "metismenujs";
-import Icons from 'feather-icons';
+<script setup lang="ts">
+  import MetisMenu from "metismenujs";
+  import ApiRequest from "@/utils/http/request";
+  import {onMounted, reactive, nextTick} from "vue";
+  import {replace} from "feather-icons";
 
-/**
- * SideBar component
- */
-export default {
-  components: {  },
-  data() { },
-  mounted: function() {
-    // eslint-disable-next-line no-unused-vars
-    var menuRef = new MetisMenu("#side-menu");
-    var links = document.getElementsByClassName("side-nav-link-ref");
-    var matchingMenuItem = null;
-    const paths = [];
+  onMounted(() => {
+    new MetisMenu("#side-menu");
+  });
 
-    for (var i = 0; i < links.length; i++) {
-      paths.push(links[i]["pathname"]);
-    }
-    var itemIndex = paths.indexOf(window.location.pathname);
-    if (itemIndex === -1) {
-      const strIndex = window.location.pathname.lastIndexOf("/");
-      const item = window.location.pathname.substr(0, strIndex).toString();
-      matchingMenuItem = links[paths.indexOf(item)];
-    } else {
-      matchingMenuItem = links[itemIndex];
-    }
+  nextTick(() => {
+    replace();
+  });
 
-    if (matchingMenuItem) {
-      matchingMenuItem.classList.add("active");
-      var parent = matchingMenuItem.parentElement;
+  interface menuItem {
+    id: number,
+    parent_id: number,
+    name: string,
+    icon: string,
+    url: string,
+    items?: menuItem[]
+  }
 
-      /**
-       * TODO: This is hard coded way of expading/activating parent menu dropdown and working till level 3.
-       * We should come up with non hard coded approach
-       */
-      if (parent) {
-        parent.classList.add("mm-active");
-        const parent2 = parent.parentElement.closest("ul");
-        if (parent2 && parent2.id !== "side-menu") {
-          parent2.classList.add("mm-show");
+  const menuItems:menuItem[] = [];
+  const menuTree:menuItem[] = reactive([]);
 
-          const parent3 = parent2.parentElement;
-          if (parent3) {
-            parent3.classList.add("mm-active");
-            var childAnchor = parent3.querySelector(".has-arrow");
-            var childDropdown = parent3.querySelector(".has-dropdown");
-            if (childAnchor) childAnchor.classList.add("mm-active");
-            if (childDropdown) childDropdown.classList.add("mm-active");
+  new ApiRequest({
+    baseURL: "http://ijony-admin-api.lvh.me",
+    timeout: 600
+  }).get({url: "/menus", params: {"per-page": 9999}}).then((res) => {
+    res.data.items.map((item: any) => {
+      let i:menuItem = item;
 
-            const parent4 = parent3.parentElement;
-            if (parent4 && parent4.id !== "side-menu") {
-              parent4.classList.add("mm-show");
-              const parent5 = parent4.parentElement;
-              if (parent5 && parent5.id !== "side-menu") {
-                parent5.classList.add("mm-active");
-                const childanchor = parent5.querySelector(".is-parent");
-                if (childanchor && parent5.id !== "side-menu") {
-                  childanchor.classList.add("mm-active");
-                }
-              }
+      if (i.parent_id === 0) {
+        menuTree.push(item);
+      }
+
+      menuItems.push(item);
+    });
+
+    const listToTree = (parent: menuItem[], children: menuItem[]) => {
+      parent.map(p => {
+        children.map(m => {
+          if (m.parent_id === p.id) {
+            listToTree([m], children)
+            if (p.items) {
+              p.items.push(m)
+            } else {
+              p.items = [m]
             }
           }
-        }
-      }
+        })
+      })
     }
-  },
 
-  methods: {
-    /**
-     * Returns true or false if given menu item has child or not
-     * @param item menuItem
-     */
-    hasItems(item) {
-      return item.subItems !== undefined ? item.subItems.length > 0 : false;
-    },
+    listToTree(menuTree, menuItems);
+  });
 
-    toggleMenu(event) {
-      event.currentTarget.nextElementSibling.classList.toggle("mm-show");
-    },
-  },
-};
+  const emits = defineEmits(['toggleSidebar']);
+  const toggleSidebarHandle = () => {
+    emits('toggleSidebar');
+  }
 </script>
 
 <template>
   <div class="vertical-menu">
-
-    <!-- LOGO -->
     <div class="navbar-brand-box">
-      <a href="index.html" class="logo logo-dark">
+      <a href="javascript:;" class="logo logo-dark">
         <span class="logo-sm">
             <img src="@/assets/images/logo-sm.png" alt="" height="22">
         </span>
@@ -97,38 +74,36 @@ export default {
         </span>
       </a>
 
-      <a href="index.html" class="logo logo-light">
-        <span class="logo-lg">
-            <img src="@/assets/images/logo-light.png" alt="" height="22">
-        </span>
+      <a href="javascript:;" class="logo logo-light">
         <span class="logo-sm">
             <img src="@/assets/images/logo-sm-light.png" alt="" height="22">
+        </span>
+        <span class="logo-lg">
+            <img src="@/assets/images/logo-light.png" alt="" height="22">
         </span>
       </a>
     </div>
 
-    <button type="button" class="btn btn-sm px-3 font-size-16 header-item vertical-menu-btn">
+    <button type="button" class="btn btn-sm px-3 font-size-16 header-item vertical-menu-btn" @click="toggleSidebarHandle">
       <i class="fa fa-fw fa-bars"></i>
     </button>
 
     <div data-simplebar class="sidebar-menu-scroll">
-
-      <!--- Sidemenu -->
       <div id="sidebar-menu">
-        <!-- Left Menu Start -->
         <ul class="metismenu list-unstyled" id="side-menu">
-          <li class="menu-title" data-key="t-dashboards">Dashboards</li>
+          <template v-for="(item, index) in menuTree">
+            <li class="menu-title" v-if="item.parent_id === 0" :key="index">{{ item.name }}</li>
+
+            <li v-for="(child, childIndex) in item.items" :key="index + '_' + childIndex">
+              <a href="javascript:;">
+                <i class="icon nav-icon" v-if="child.icon" :data-feather="child.icon"></i>
+                <span class="menu-item" :data-key="child.name">{{ child.name }}</span>
+              </a>
+            </li>
+          </template>
 
           <li>
-            <a href="index.html">
-              <i class="icon nav-icon" data-feather="monitor"></i>
-              <span class="menu-item" data-key="t-sales">Sales</span>
-              <span class="badge rounded-pill badge-soft-secondary">5+</span>
-            </a>
-          </li>
-
-          <li>
-            <a href="dashboards-analytics.html">
+            <a href="javascript:;">
               <i class="icon nav-icon" data-feather="pie-chart"></i>
               <span class="menu-item" data-key="t-analytics">Analytics</span>
             </a>
@@ -137,14 +112,14 @@ export default {
           <li class="menu-title" data-key="t-applications">Applications</li>
 
           <li>
-            <a href="apps-calendar.html">
+            <a href="javascript:;">
               <i class="icon nav-icon" data-feather="calendar"></i>
               <span class="menu-item" data-key="t-calendar">Calendar</span>
             </a>
           </li>
 
           <li>
-            <a href="apps-chat.html">
+            <a href="javascript:;">
               <i class="icon nav-icon" data-feather="message-square"></i>
               <span class="menu-item" data-key="t-chat">Chat</span>
               <span class="badge rounded-pill badge-soft-danger" data-key="t-hot">Hot</span>
@@ -152,14 +127,14 @@ export default {
           </li>
 
           <li>
-            <a href="apps-kanban-board.html">
+            <a href="javascript:;">
               <i class="icon nav-icon" data-feather="trello"></i>
               <span class="menu-item" data-key="t-kanban">Kanban Board</span>
             </a>
           </li>
 
           <li>
-            <a href="apps-file-manager.html">
+            <a href="javascript:;">
               <i class="icon nav-icon" data-feather="folder"></i>
               <span class="menu-item" data-key="t-filemanager">File Manager</span>
             </a>
@@ -189,7 +164,7 @@ export default {
           </li>
 
           <li>
-            <a href="apps-gallery.html">
+            <a href="javascript:;">
               <i class="icon nav-icon" data-feather="image"></i>
               <span class="menu-item" data-key="t-gallery">Gallery</span>
             </a>
@@ -211,7 +186,7 @@ export default {
           <li class="menu-title" data-key="t-layouts">Layouts</li>
 
           <li>
-            <a href="layouts-horizontal.html">
+            <a href="javascript:;">
               <i class="icon nav-icon" data-feather="layout"></i>
               <span class="menu-item" data-key="t-horizontal">Horizontal</span>
             </a>
@@ -220,7 +195,7 @@ export default {
           <li class="menu-title" data-key="t-pages">Pages</li>
 
           <li>
-            <a href="javascript: void(0);">
+            <a href="javascript:;">
               <i class="icon nav-icon" data-feather="user"></i>
               <span class="menu-item" data-key="t-authentication">Authentication</span>
               <span class="badge rounded-pill bg-info">9</span>
@@ -404,7 +379,7 @@ export default {
             </ul>
           </li>
           <li>
-            <a href="widgets.html">
+            <a href="javascript:;">
               <i class="icon nav-icon" data-feather="grid"></i>
               <span class="menu-item" data-key="t-widgets">Widgets</span>
             </a>
@@ -506,7 +481,6 @@ export default {
 
         </ul>
       </div>
-      <!-- Sidebar -->
     </div>
   </div>
 </template>
